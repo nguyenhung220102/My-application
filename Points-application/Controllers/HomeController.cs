@@ -8,10 +8,6 @@ namespace Points_application.Controllers
 {
     public class HomeController : Controller
     {
-        public ActionResult Index()
-        {
-            return View();
-        }
 
         public ActionResult About()
         {
@@ -20,9 +16,23 @@ namespace Points_application.Controllers
             return View();
         }
 
-        public ActionResult Contact()
+
+        public ActionResult Main()
         {
-            ViewBag.Message = "Your contact page.";
+            ViewBag.Message = "Your main page.";
+
+            return View();
+        }
+        public ActionResult Tutorial()
+        {
+            ViewBag.Message = "Your tutorial page.";
+
+            return View();
+        }
+
+        public ActionResult Output()
+        {
+            ViewBag.Message = "Your output page.";
 
             return View();
         }

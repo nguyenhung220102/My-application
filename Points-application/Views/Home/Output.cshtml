@@ -1,0 +1,257 @@
+@{
+    ViewBag.Title = "Output";
+}
+
+<main aria-labelledby="title">
+    <div class="file">
+        <div class="file__title">
+            Output
+        </div>
+    </div>
+    <div class="plane">
+        <div class="plane__container">
+            <canvas class="plane__canvas" style="z-index:0;" id="my-canvas">
+            </canvas>
+            <canvas class="plane__overlay" style="z-index:1;" id="canvas-overlay">
+            </canvas>
+        </div>
+        <script>
+
+            //Initial data
+            var h = 500;
+            var init = 250;
+            var point = 2;
+            var index = 1;
+            var density = 5000;
+            var w = 800;
+            var curr_x = 400;
+            var curr_y = 250;
+            var click = false;
+            var canvas = document.getElementById("my-canvas");
+            canvas.style.width = (canvas.width = w);
+            canvas.style.height = (canvas.height = h);
+
+            //Select a point on canvas
+            var overlay = document.getElementById("canvas-overlay");
+            overlay.style.width = (overlay.width = w);
+            overlay.style.height = (overlay.height = h);
+            overlay.addEventListener("mousedown", (e) => {
+                let rec = overlay.getBoundingClientRect();
+                let x = e.clientX - rec.left;
+                let y = e.clientY - rec.top;
+                curr_x = x;
+                curr_y = y;
+                var ctx = overlay.getContext("2d");
+                ctx.clearRect(0, 0, overlay.width, overlay.height);
+                drawPoint(x, y);
+            })
+
+            drawInitial(init);
+            function rand(min, max) {
+                return Math.floor(Math.random() * (max - min + 1) + min)
+            }
+
+            function drawInitial(init) {
+                var canvas = document.getElementById("my-canvas");
+                var ctx = canvas.getContext("2d");
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                var i = 0;
+
+                while (i < density) {
+                    var a = (rand(400 - init, 400 + init)) - 400;
+                    var b = (rand(0, 500)) - init;
+                    ctx.strokeStyle = "black";
+                    ctx.fillStyle = "black";
+                    if ((a * a + b * b) < init * init) {
+                        ctx.beginPath();
+                        ctx.arc(a + 400, b + init, point, 0, 2 * Math.PI);
+                        ctx.stroke();
+                        ctx.fill();
+                    }
+                    i++;
+                }
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.strokeStyle = "#BAFF39";
+                ctx.beginPath();
+                ctx.moveTo(400, 0);
+                ctx.lineTo(400, init * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(400 - init, init);
+                ctx.lineTo(400 + init, init);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.strokeStyle = "#BAFF39";
+                ctx.arc(400, init, init, 0, 2 * Math.PI);
+                ctx.stroke();
+                ctx.save();
+            }
+
+            function zoom_in() {
+                if (density <= 8000) {
+                    var canvas = document.getElementById("my-canvas");
+                    var ctx = canvas.getContext("2d");
+                    ctx.clearRect(0, 0, canvas.width + 100000, canvas.height + 1);
+                    init *= 2;
+                    index *= 2;
+                    point += 0.1;
+                    density += 500;
+                    drawInitial(init);
+                    document.getElementById("index").innerHTML = index;
+                }
+            }
+
+            function zoom_out() {
+                if (density >= 5000) {
+                    var canvas = document.getElementById("my-canvas");
+                    var ctx = canvas.getContext("2d");
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    init /= 2;
+                    index /= 2;
+                    point -= 0.1;
+                    density -= 500;
+                    drawInitial(init);
+                    document.getElementById("index").innerHTML = index;
+                }
+            }
+
+            function reset() {
+                var canvas = document.getElementById("my-canvas");
+                var ctx = canvas.getContext("2d");
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                init = 250;
+                point = 2;
+                index = 1;
+                density = 5000;
+                drawInitial(init);
+                document.getElementById("index").innerHTML = index;
+                var ctx = overlay.getContext("2d");
+                ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+            }
+
+            function drawPoint(x, y) {
+                var overlay = document.getElementById("canvas-overlay");
+                var ctx = overlay.getContext("2d");
+                ctx.strokeStyle = "red";
+                ctx.beginPath();
+                ctx.arc(x, y, 6, 0, 2 * Math.PI);
+                ctx.stroke();
+                ctx.fillStyle = "red";
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = "red";
+                ctx.beginPath();
+                ctx.setLineDash([10, 15])
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+                ctx.strokeStyle = "red";
+                ctx.fillStyle = "white";
+                ctx.fillRect(x, 0, 40, 20);
+                ctx.fillRect(0, y - 25, 50, 25);
+                ctx.font = "12px Arial";
+                ctx.fillStyle = "red";
+                ctx.fillText((Math.round(x) - 400) * (40)/index, x + 5, 10);
+                ctx.fillText((Math.round(y) - 250) * (-40)/index, 10, y - 5);
+            }
+
+            function open_modal() {
+                document.getElementById("confirm_modal").style.display = "flex";
+            }
+            function close_modal() {
+                document.getElementById("confirm_modal").style.display = "none";
+            }
+            function create_menu() {
+                if (!click) {
+                    var menu = document.getElementById("menu");
+                    menu.style.display = "flex";
+                    click = !click;
+                } else {
+                    var menu = document.getElementById("menu");
+                    menu.style.display = "none";
+                    click = !click;
+                }
+
+            }
+        </script>
+        <span class="btn-group">
+            <button class="btn-primary action abs" onclick="zoom_in()">
+                <i class="fa-solid fa-plus"></i>
+            </button>
+            <button class="btn-primary action abs" onclick="zoom_out()">
+                <i class="fa-solid fa-minus"></i>
+            </button>
+            <span style="position: relative;">
+                <button class="btn-primary action" style="font-size:2rem; position:relative;" id="index" onclick="create_menu()">
+                    1
+                </button>
+                <span class="zoom__list btn-group" id="menu" style="display:none">
+                    <span class="btn-default action abs zoom__list-item" style="font-size:2rem;">
+                        0.5
+                    </span>
+                    <span class="btn-default action abs zoom__list-item" style="font-size:2rem;">
+                        1
+                    </span>
+                    <span class="btn-default action abs zoom__list-item" style="font-size:2rem;">
+                        2
+                    </span>
+                    <span class="btn-default action abs zoom__list-item" style="font-size:2rem;">
+                        4
+                    </span>
+                    <span class="btn-default action abs zoom__list-item" style="font-size:2rem;">
+                        8
+                    </span>
+                    <span class="btn-default action abs zoom__list-item" style="font-size:2rem;">
+                        16
+                    </span>
+                    <span class="btn-default action abs zoom__list-item" style="font-size:2rem;">
+                        32
+                    </span>
+                    <span class="btn-default action abs zoom__list-item" style="font-size:2rem;">
+                        64
+                    </span>
+                </span>
+            </span>
+
+            <button class="btn-primary action abs" onclick="reset()">
+                <i class="fa-solid fa-rotate-left"></i>
+            </button>
+            <button class="btn-primary action abs">
+                <i class="fa-solid fa-download"></i>
+            </button>
+            <button class="btn-primary action abs" onclick="open_modal()">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+        </span>
+    </div>
+    <div class="modal" id="confirm_modal" style="display:none;">
+        <div class="modal__overlay">
+        </div>
+        <div class="modal__body">
+            <div class="modal__title">
+                Settings
+            </div>
+            <div class="modal__icon">
+                <i class="fa-solid fa-circle-up"></i>
+            </div>
+            <div class="modal__btn-group" style="display: flex; gap: 25px;">
+                <button class="butn butn-default modal__btn" onclick="close_modal();">
+                    CANCEL
+                </button>
+                <button class="butn butn-primary modal__btn">
+                    <div class="spinner-border" role="status" style="font-weight:500; display:none;" id="waiting">
+                        <span class="sr-only"></span>
+                    </div>
+                    CONFIRM
+                </button>
+            </div>
+        </div>
+    </div>
+</main>

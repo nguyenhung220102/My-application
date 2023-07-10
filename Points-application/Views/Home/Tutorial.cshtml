@@ -1,0 +1,117 @@
+@{
+    ViewBag.Title = "Tutorial";
+}
+<main aria-labelledby="title">
+
+    <div class="tutorial" id="page_1">
+        <div class="tutorial__section">
+            <div class="tutorial__section-step">
+                Step 1
+            </div>
+            <div class="tutorial__section-content">
+            </div>
+            <div class="tutorial__section-img">
+            </div>
+        </div>
+        <div class="tutorial__section">
+            <div class="tutorial__section-step">
+                Step 2
+            </div>
+        </div>
+    </div>
+    <div class="tutorial" id="page_2" style="display:none;">
+        <div class="tutorial__section">
+            <div class="tutorial__section-step">
+                Step 3
+            </div>
+            <div class="tutorial__section-content">
+            </div>
+            <div class="tutorial__section-img">
+            </div>
+        </div>
+        <div class="tutorial__section">
+            <div class="tutorial__section-step">
+                Step 4
+            </div>
+        </div>
+    </div>
+    <div class="tutorial" id="page_3" style="display:none;">
+        <div class="tutorial__section">
+            <div class="tutorial__section-step">
+                Step 5
+            </div>
+            <div class="tutorial__section-content">
+            </div>
+            <div class="tutorial__section-img">
+            </div>
+        </div>
+        <div class="tutorial__section">
+            <div class="tutorial__section-step">
+                Step 6
+            </div>
+        </div>
+    </div>
+    <div class="pagination">
+        <div class="pagination__item" onclick="previous();">
+            <i class="fa-solid fa-chevron-left"></i>
+        </div>
+        <div class="pagination__item" id="btn_1" onclick="open_page1();">
+            1
+        </div>
+        <div class="pagination__item" id="btn_2" onclick="open_page2();">
+            2
+        </div>
+        <div class="pagination__item" id="btn_3" onclick="open_page3();">
+            3
+        </div>
+        <div class="pagination__item" onclick="next();">
+            <i class="fa-solid fa-chevron-right"></i>
+        </div>
+    </div>
+    <script>
+        var currentPage = 1;
+        document.getElementById("btn_1").classList.add("active__button");
+        function next() {
+            switch (currentPage) {
+                case 1:
+                    open_page2();
+                    break;
+                case 2:
+                    open_page3();
+                    break;
+                default:
+                    open_page3();
+            }
+        }
+        function previous() {
+            switch (currentPage) {
+                case 3:
+                    open_page2();
+                    break;
+                case 2:
+                    open_page1();
+                    break;
+                default:
+                    open_page1();
+            }
+        }
+        function open_page(page) {
+            if (page != currentPage) {
+                document.getElementById(`btn_${currentPage}`).classList.remove("active__button");
+                document.getElementById(`btn_${page}`).classList.add("active__button");
+                document.getElementById(`page_${currentPage}`).style.display = "none";
+                document.getElementById(`page_${page}`).style.display = "flex";
+                currentPage = page;
+            }
+        }
+        function open_page1() {
+            open_page(1);
+        }
+        function open_page2() {
+            open_page(2);
+        }
+        function open_page3() {
+            open_page(3);
+        }
+    </script>
+</main>
