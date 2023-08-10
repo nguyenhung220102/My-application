@@ -1,4 +1,4 @@
-@{
+﻿@{
     ViewBag.Title = "Output";
 }
 
@@ -8,250 +8,346 @@
             Output
         </div>
     </div>
-    <div class="plane">
-        <div class="plane__container">
+    <div class="plane" id="plane__outer">
+        <div class="plane__container" id="plane__container">
+            <span class="plane__bound plane__bound--xMax" id="xMax">
+                10000
+            </span>
+            <span class="plane__bound plane__bound--xMin" id="xMin">
+                -10000
+            </span>
+            <span class="plane__bound plane__bound--yMin" id="yMin">
+                -10000
+            </span>
+            <span class="plane__bound plane__bound--yMax" id="yMax">
+                10000
+            </span>
+            <span class="plane__bound plane__bound--value">
+                (
+                <span id="xValue">
+                    0
+                </span>
+                ;
+                <span id="yValue">
+                    0
+                </span>
+                )
+            </span>
             <canvas class="plane__canvas" style="z-index:0;" id="my-canvas">
             </canvas>
             <canvas class="plane__overlay" style="z-index:1;" id="canvas-overlay">
             </canvas>
+            <div id="canvas__loading" style="display:flex;">
+                <div class="spinner-border spinner__custom" role="status">
+                </div>
+            </div>
+            <span class="btn-group">
+                <button class="btn-primary" id="zoomInBtn" onclick="zoom_in();">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+                <button class="btn-primary" id="zoomOutBtn" onclick="zoom_out();">
+                    <i class="fa-solid fa-minus"></i>
+                </button>
+                <span style="position: relative;">
+                    <span class="btn-primary action" style="font-size:1.8rem; position:relative;" id="index">
+                        1X
+                    </span>
+                </span>
+                <button class="btn-primary action abs" onclick="reset()">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+            </span>
         </div>
         <script>
-
-            //Initial data
-            var h = 500;
-            var init = 250;
-            var point = 2;
-            var index = 1;
-            var density = 5000;
-            var w = 800;
-            var curr_x = 400;
-            var curr_y = 250;
-            var click = false;
+            //Initial data.
+            // Canvas 500x500.
+            // Set kích thước canvas.
             var canvas = document.getElementById("my-canvas");
-            canvas.style.width = (canvas.width = w);
-            canvas.style.height = (canvas.height = h);
+            canvas.style.width = (canvas.width = width);
+            canvas.style.height = (canvas.height = height);
 
+            // Set kích thước cho plane container = plane
+            var plane = document.getElementById("plane__container");
+            plane.style.width = width.toString() + "px";
+            plane.style.height = height.toString() + "px";
+
+            // Set kích thước body phù hợp với plane
+            var plane_outer = document.getElementById("plane__outer");
+            plane_outer.style.height = (height + 100).toString() + "px";
+
+            // Các giá trị xMin, xMax, yMin, yMax ban đầu
+            document.getElementById("xMin").textContent = -radius;
+            document.getElementById("xMax").textContent = radius;
+            document.getElementById("yMin").textContent = -radius;
+            document.getElementById("yMax").textContent = radius;
+
+            // Mức độ scale hiện tại, mặc định là 1.
+            var scale = 1;
+            var px = 1;
+            // Giá trị R của đường tròn.
+            var init = height / 2;
+            var index = "1";
+
+            // Vị trí tâm O hiện tại.
+            var x_axis = width / 2;
+            var y_axis = height / 2;
+
+            // Vị trí điểm chấm nếu chưa chọn một điểm zoom thì sẽ mặc định 250, 250.
+            // Vị trí này ứng với giá trị thực tế (đã được chuyển sang canvas).
+            var x_real = width / 2;
+            var y_real = height / 2;
+
+            var x_stack = 0;
+            var y_stack = 0;
+
+            // khoảng cách từ tâm đến các cạnh hiện tại (ứng với khoảng thực).
+            var curr_size_x = width / 2;
+            var curr_size_y = height / 2;
+
+            // Các giá trị min max (Giá trị thực tế của điểm) - sử dụng để truy vấn dữ liệu từ database.
+            var xMin = -radius;
+            var yMin = -radius;
+            var xMax = radius;
+            var yMax = radius;
+
+            // Sử dụng để truy vấn các tầng dữ liệu trong database.
+            var level = 1;
+            var state = "default";
+            // Phương thức nhận dữ liệu.
+            const option = {
+                method: "GET"
+            };
+            // Biến cho việc vẽ điểm
+            var c = 0;
+            var d = 0;
+
+            // Get initial data
+            getDataByLevel();
+
+            // Get data by level
+            async function getDataByLevel() {
+                const request = new Request(`/Home/GetDataByLevel?level=${level}&xMin=${xMin}&xMax=${xMax}&yMin=${yMin}&yMax=${yMax}`);
+                const res = await fetch(request, option);
+                const json = await res.json();
+                drawPoints(json);
+            }
+
+            var pixel = new Image(1, 1);
             //Select a point on canvas
             var overlay = document.getElementById("canvas-overlay");
-            overlay.style.width = (overlay.width = w);
-            overlay.style.height = (overlay.height = h);
+            overlay.style.width = (overlay.width = width);
+            overlay.style.height = (overlay.height = height);
+
             overlay.addEventListener("mousedown", (e) => {
                 let rec = overlay.getBoundingClientRect();
                 let x = e.clientX - rec.left;
                 let y = e.clientY - rec.top;
-                curr_x = x;
-                curr_y = y;
+                x_real = (e.clientX - rec.left) / scale + x_stack;
+                y_real = (e.clientY - rec.top) / scale + y_stack;
+                if (state == "zoomIn") {
+                    setZoomIn()
+                } else if (state == "zoomOut") {
+                    setZoomOut()
+                }
+            });
+            overlay.addEventListener("mousemove", (e) => {
+                let rec = overlay.getBoundingClientRect();
+                let x = e.clientX - rec.left;
+                let y = e.clientY - rec.top;
                 var ctx = overlay.getContext("2d");
                 ctx.clearRect(0, 0, overlay.width, overlay.height);
                 drawPoint(x, y);
             })
 
-            drawInitial(init);
-            function rand(min, max) {
-                return Math.floor(Math.random() * (max - min + 1) + min)
+            // Chọn một điểm trên canvas
+            function drawPoint(x, y) {
+                var overlay = document.getElementById("canvas-overlay");
+                var ctx = overlay.getContext("2d");
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = "blue";
+                ctx.fillStyle = "red";
+                if (state == "zoomIn") {
+                    ctx.beginPath();
+                    ctx.rect(x - width / 4, y - height / 4, width / 2, height/2);
+                    ctx.stroke();
+                }
+                ctx.save();
+                document.getElementById("xValue").innerHTML = Math.round(rev_trans_x(x / scale + x_stack));
+                document.getElementById("yValue").innerHTML = Math.round(rev_trans_y(y / scale + y_stack));
             }
 
-            function drawInitial(init) {
+
+            function drawPoints(data) {
+                if (level >= 4) {
+                    px = 2;
+                } else px = 1;
                 var canvas = document.getElementById("my-canvas");
                 var ctx = canvas.getContext("2d");
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                var i = 0;
-
-                while (i < density) {
-                    var a = (rand(400 - init, 400 + init)) - 400;
-                    var b = (rand(0, 500)) - init;
-                    ctx.strokeStyle = "black";
-                    ctx.fillStyle = "black";
-                    if ((a * a + b * b) < init * init) {
-                        ctx.beginPath();
-                        ctx.arc(a + 400, b + init, point, 0, 2 * Math.PI);
-                        ctx.stroke();
-                        ctx.fill();
-                    }
+                let i = 0;
+                for (p of data) {
                     i++;
+                    c = trans_x(parseInt(p[0].Value));
+                    d = trans_y(parseInt(p[1].Value));
+                    c = (c - x_real) * scale + width / 2;
+                    d = (d - y_real) * scale + height / 2;
+                    ctx.fillStyle = "red";
+                    ctx.fillRect(c, d, px, px);
                 }
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                ctx.strokeStyle = "#BAFF39";
+
+                console.log(i);
+                // Calculate x and y axis position (as well as center of the circle)
+                x_axis = width / 2 + scale * (width / 2 - x_real);
+                y_axis = height / 2 + scale * (height / 2 - y_real);
+
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = "black";
                 ctx.beginPath();
-                ctx.moveTo(400, 0);
-                ctx.lineTo(400, init * 2);
+                ctx.moveTo(x_axis, 0);
+                ctx.lineTo(x_axis, height);
                 ctx.stroke();
                 ctx.beginPath();
-                ctx.moveTo(400 - init, init);
-                ctx.lineTo(400 + init, init);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.strokeStyle = "#BAFF39";
-                ctx.arc(400, init, init, 0, 2 * Math.PI);
+                ctx.moveTo(0, y_axis);
+                ctx.lineTo(width, y_axis);
                 ctx.stroke();
                 ctx.save();
+                ctx.beginPath();
+                ctx.strokeStyle = "black";
+                ctx.arc(x_axis, y_axis, init, 0, 2 * Math.PI);
+                ctx.stroke();
+                ctx.save();
+
+                var ctx = overlay.getContext("2d");
+                ctx.clearRect(0, 0, overlay.width, overlay.height);
+                document.getElementById("xMin").innerHTML = xMin;
+                document.getElementById("xMax").innerHTML = xMax;
+                document.getElementById("yMin").innerHTML = yMin;
+                document.getElementById("yMax").innerHTML = yMax;
+                HideLoadingScreen();
             }
 
             function zoom_in() {
-                if (density <= 8000) {
-                    var canvas = document.getElementById("my-canvas");
-                    var ctx = canvas.getContext("2d");
-                    ctx.clearRect(0, 0, canvas.width + 100000, canvas.height + 1);
-                    init *= 2;
-                    index *= 2;
-                    point += 0.1;
-                    density += 500;
-                    drawInitial(init);
-                    document.getElementById("index").innerHTML = index;
+                if (state == "zoomIn") {
+                    overlay.classList.remove("zoom-in");
+                    document.getElementById("zoomInBtn").classList.remove("btn-primary-clicked");
+                    state = "default";
+                } else {
+                    overlay.classList.remove("zoom-out");
+                    document.getElementById("zoomOutBtn").classList.remove("btn-primary-clicked");
+                    overlay.classList.add("zoom-in");
+                    document.getElementById("zoomInBtn").classList.add("btn-primary-clicked");
+                    state = "zoomIn";
                 }
+
             }
 
             function zoom_out() {
-                if (density >= 5000) {
-                    var canvas = document.getElementById("my-canvas");
-                    var ctx = canvas.getContext("2d");
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (state == "zoomOut") {
+                    overlay.classList.remove("zoom-out");
+                    document.getElementById("zoomOutBtn").classList.remove("btn-primary-clicked");
+                    state = "default";
+                } else {
+                    overlay.classList.remove("zoom-in");
+                    document.getElementById("zoomInBtn").classList.remove("btn-primary-clicked");
+                    overlay.classList.add("zoom-out");
+                    document.getElementById("zoomOutBtn").classList.add("btn-primary-clicked");
+                    state = "zoomOut";
+                }
+            }
+
+            function setZoomIn() {
+                if (scale < 512) {
+                    ShowLoadingScreen();
+                    level += 1;
+                    init *= 2;
+                    scale *= 2;
+                    document.getElementById("index").innerHTML = scale + "X";
+
+                    x_stack = x_real - curr_size_x / 2;
+                    y_stack = y_real - curr_size_y / 2;
+                    curr_size_x /= 2;
+                    curr_size_y /= 2;
+                    updateBound();
+                    getDataByLevel();
+                }
+            }
+
+            function setZoomOut() {
+                if (scale > 1) {
+                    ShowLoadingScreen();
                     init /= 2;
-                    index /= 2;
-                    point -= 0.1;
-                    density -= 500;
-                    drawInitial(init);
-                    document.getElementById("index").innerHTML = index;
+                    level -= 1;
+                    scale /= 2;
+                    document.getElementById("index").innerHTML = scale + "X";
+
+                    x_stack = x_real - curr_size_x * 2;
+                    y_stack = y_real - curr_size_y * 2;
+                    curr_size_x *= 2;
+                    curr_size_y *= 2;
+                    updateBound();
+                    getDataByLevel();
                 }
             }
 
             function reset() {
-                var canvas = document.getElementById("my-canvas");
-                var ctx = canvas.getContext("2d");
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                init = 250;
-                point = 2;
-                index = 1;
-                density = 5000;
-                drawInitial(init);
-                document.getElementById("index").innerHTML = index;
+                state = "default";
+                document.getElementById("zoomOutBtn").classList.remove("btn-primary-clicked");
+                document.getElementById("zoomInBtn").classList.remove("btn-primary-clicked");
+                ShowLoadingScreen();
+                overlay.classList.remove("zoom-in");
+                overlay.classList.remove("zoom-out");
+                scale = 1;
+                init = height / 2;
+                x_axis = width / 2;
+                y_axis = height / 2;
+                x_real = width / 2;
+                y_real = height / 2;
+                x_stack = 0;
+                y_stack = 0;
+                curr_size_x = width / 2;
+                curr_size_y = height / 2;
+                xMin = -radius;
+                yMin = -radius;
+                xMax = radius;
+                yMax = radius;
+                level = 1;
                 var ctx = overlay.getContext("2d");
                 ctx.clearRect(0, 0, overlay.width, overlay.height);
+                getDataByLevel();
+                document.getElementById("index").innerHTML = scale + "X";
 
             }
 
-            function drawPoint(x, y) {
-                var overlay = document.getElementById("canvas-overlay");
-                var ctx = overlay.getContext("2d");
-                ctx.strokeStyle = "red";
-                ctx.beginPath();
-                ctx.arc(x, y, 6, 0, 2 * Math.PI);
-                ctx.stroke();
-                ctx.fillStyle = "red";
-                ctx.fill();
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = "red";
-                ctx.beginPath();
-                ctx.setLineDash([10, 15])
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, y);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(x, y);
-                ctx.stroke();
-                ctx.strokeStyle = "red";
-                ctx.fillStyle = "white";
-                ctx.fillRect(x, 0, 40, 20);
-                ctx.fillRect(0, y - 25, 50, 25);
-                ctx.font = "12px Arial";
-                ctx.fillStyle = "red";
-                ctx.fillText((Math.round(x) - 400) * (40)/index, x + 5, 10);
-                ctx.fillText((Math.round(y) - 250) * (-40)/index, 10, y - 5);
+            //Calculate current bound and level
+            function updateBound() {
+                xMin = Math.ceil(rev_trans_x(x_real - curr_size_x));
+                xMax = Math.ceil(rev_trans_x(x_real + curr_size_x));
+                yMin = Math.ceil(rev_trans_y(y_real + curr_size_y));
+                yMax = Math.ceil(rev_trans_y(y_real - curr_size_y));
             }
 
-            function open_modal() {
-                document.getElementById("confirm_modal").style.display = "flex";
+            //Translate real data to canvas data and vice versa
+            function trans_x(x) {
+                return (x + radius) * height / (2 * radius) + (width - height)/2;
             }
-            function close_modal() {
-                document.getElementById("confirm_modal").style.display = "none";
-            }
-            function create_menu() {
-                if (!click) {
-                    var menu = document.getElementById("menu");
-                    menu.style.display = "flex";
-                    click = !click;
-                } else {
-                    var menu = document.getElementById("menu");
-                    menu.style.display = "none";
-                    click = !click;
-                }
 
+            function rev_trans_x(x) {
+                return (2 * radius) / height * (x - (width - height)/2) - radius;
+            }
+            function trans_y(y) {
+                return (-y + radius) * height / (2 * radius);
+            }
+            function rev_trans_y(y) {
+                return - (2 * radius) / height * y + radius;
+            }
+
+            //Show loading screen when zoom in/out
+            function ShowLoadingScreen() {
+                document.getElementById("canvas__loading").style.display = "flex";
+            }
+            function HideLoadingScreen() {
+                document.getElementById("canvas__loading").style.display = "none";
             }
         </script>
-        <span class="btn-group">
-            <button class="btn-primary action abs" onclick="zoom_in()">
-                <i class="fa-solid fa-plus"></i>
-            </button>
-            <button class="btn-primary action abs" onclick="zoom_out()">
-                <i class="fa-solid fa-minus"></i>
-            </button>
-            <span style="position: relative;">
-                <button class="btn-primary action" style="font-size:2rem; position:relative;" id="index" onclick="create_menu()">
-                    1
-                </button>
-                <span class="zoom__list btn-group" id="menu" style="display:none">
-                    <span class="btn-default action abs zoom__list-item" style="font-size:2rem;">
-                        0.5
-                    </span>
-                    <span class="btn-default action abs zoom__list-item" style="font-size:2rem;">
-                        1
-                    </span>
-                    <span class="btn-default action abs zoom__list-item" style="font-size:2rem;">
-                        2
-                    </span>
-                    <span class="btn-default action abs zoom__list-item" style="font-size:2rem;">
-                        4
-                    </span>
-                    <span class="btn-default action abs zoom__list-item" style="font-size:2rem;">
-                        8
-                    </span>
-                    <span class="btn-default action abs zoom__list-item" style="font-size:2rem;">
-                        16
-                    </span>
-                    <span class="btn-default action abs zoom__list-item" style="font-size:2rem;">
-                        32
-                    </span>
-                    <span class="btn-default action abs zoom__list-item" style="font-size:2rem;">
-                        64
-                    </span>
-                </span>
-            </span>
-
-            <button class="btn-primary action abs" onclick="reset()">
-                <i class="fa-solid fa-rotate-left"></i>
-            </button>
-            <button class="btn-primary action abs">
-                <i class="fa-solid fa-download"></i>
-            </button>
-            <button class="btn-primary action abs" onclick="open_modal()">
-                <i class="fa-solid fa-gear"></i>
-            </button>
-        </span>
-    </div>
-    <div class="modal" id="confirm_modal" style="display:none;">
-        <div class="modal__overlay">
-        </div>
-        <div class="modal__body">
-            <div class="modal__title">
-                Settings
-            </div>
-            <div class="modal__icon">
-                <i class="fa-solid fa-circle-up"></i>
-            </div>
-            <div class="modal__btn-group" style="display: flex; gap: 25px;">
-                <button class="butn butn-default modal__btn" onclick="close_modal();">
-                    CANCEL
-                </button>
-                <button class="butn butn-primary modal__btn">
-                    <div class="spinner-border" role="status" style="font-weight:500; display:none;" id="waiting">
-                        <span class="sr-only"></span>
-                    </div>
-                    CONFIRM
-                </button>
-            </div>
-        </div>
     </div>
 </main>

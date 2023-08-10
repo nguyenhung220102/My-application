@@ -1,56 +1,172 @@
+
 @{
     ViewBag.Title = "Main";
+
 }
+
 <main aria-labelledby="title">
+    <div id="loading" style="display:none;">
+        <div class="spinner-border spinner__custom" role="status">
+        </div>
+        <span class="file__content">
+            Processing time:
+            <span id="time">
+                0h0m0s
+            </span>
+        </span>
+    </div>
     <div class="file">
         <div class="file__title">
             File upload
         </div>
-        <div class="file__input">
-            <label class="butn butn-default">
-                Browse <input id="file_input" onchange="checkType()" type="file" style="display: none;" runat="server" required>
-            </label>
-            <button class="butn butn-primary" id="submit_btn" onclick="open_modal();" style="display:none;">
-                Submit
-            </button>
-            <div class="file__name" id="name">
+        <form id="form-submit" method="post" enctype="multipart/form-data">
+            <div class="file__input">
+                <label class="butn butn-default">
+                    Browse <input name="file" id="file" onchange="checkType()" type="file" style="display: none;" required>
+                </label>
+                <button class="butn butn-default" type="submit" id="submit_btn" style="display:none;" name="button1">
+                    Submit
+                </button>
+                <div class="file__name" id="name">
+                </div>
             </div>
-        </div>
+        </form>
         <div class="file__input-state file-true" id="valid">
             <i class="fa-regular fa-circle-check"></i>
             <span>
                 Valid file format. Click submit to get the result.
             </span>
         </div>
+
         <div class="file__input-state file-false" id="invalid">
             <i class="fa-regular fa-circle-xmark"></i>
             <span id="invalid-text">
                 The file format is invalid. Please upload another file.
             </span>
         </div>
-        <div id="test">
-
+    </div>
+    <div class="file">
+        <div class="file__title">
+            Output
         </div>
+        <div class="file__content" id="no-file">
+            No file chosen, yet. Attach and submit your file to see the result.
+        </div>
+        <div class="file__content" id="total__time" style="display:none; align-self:flex-start;">
+            Total processing time:&nbsp; <span id="total-time"></span>
+        </div>
+
+        <div class="butn butn-default" id="view-result" style="display:none;">
+            @Html.ActionLink("Output", "Output", "Home", new { area = "" }, new { @class = "nav-link" })
+        </div>
+        <div class="file__content" id="invalid-line-div" style="display:none; flex-direction:column; align-self:flex-start;">
+            <span id="total-time-invalid"></span>
+            <span id="invalid-content">
+            </span>
+            <samp id="invalid-line" style="background-color: #ffc10738 ">
+            </samp>
+            <button type="submit" form="form-submit" style="margin-top:1.2rem;" class="butn butn-default" id="skip-line" name="button2">
+                Skip
+            </button>
+        </div>
+
     </div>
     <script>
+        var sec = 0;
+        var min = 0;
+        var hour = 0;
+        $(document).ready(function () {
+            $("#form-submit").submit(function (e) {
+                e.preventDefault();
+                sec = 1;
+                min = 0;
+                hour = 0;
+                document.getElementById("loading").style.display = "flex";
+                var formData = new FormData();
+                clearInterval(timer);
+                var timer = setInterval(setTime, 1000);
+                if ($(e.originalEvent.submitter).attr("name") == "button1") {
+                    formData.append("name", "no-skip");
+                } else formData.append("name", "skip");
+                formData.append("file", document.getElementById("file").files[0])
+                $.ajax({
+                    type: 'POST',
+                    url: '/Home/PostData',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function (response) {
+                        if (response == "success") {
+                            document.getElementById("invalid-line-div").style.display = "none";
+                            document.getElementById("loading").style.display = "none";
+                            clearInterval(timer);
+                            document.getElementById("no-file").style.display = "none";
+                            document.getElementById("total__time").style.display = "flex";
+                            document.getElementById("total-time").textContent = " " + hour.toString() + "h" + min.toString() + "m" + sec.toString() + "s.";
+                            document.getElementById("view-result").style.display = "flex";
+                        } else if (response.startsWith("Line 1|")) {
+                            document.getElementById("total__time").style.display = "none";
+                            document.getElementById("view-result").style.display = "none";
+                            document.getElementById("loading").style.display = "none";
+                            clearInterval(timer);
+                            document.getElementById("no-file").style.display = "none";
+                            document.getElementById("total-time-invalid").textContent = "Total processing time: " + hour.toString() + "h" + min.toString() + "m" + sec.toString() + "s.";
+                            document.getElementById("invalid-line-div").style.display = "flex";
+                            document.getElementById("invalid-content").textContent = "You have summitted a file with an invalid declaration of radius. Please submit another file with valid radius format.";
+                            document.getElementById("invalid-line").textContent = response;
+                            document.getElementById("skip-line").style.display = "none";
+                        } else {
+                            document.getElementById("total__time").style.display = "none";
+                            document.getElementById("view-result").style.display = "none";
+                            document.getElementById("loading").style.display = "none";
+                            clearInterval(timer);
+                            document.getElementById("no-file").style.display = "none";
+                            document.getElementById("total-time-invalid").textContent = "Total processing time: " + hour.toString() + "h" + min.toString() + "m" + sec.toString() + "s.";
+                            document.getElementById("invalid-line-div").style.display = "flex";
+                            document.getElementById("invalid-content").textContent = "Our program has detected an invalid line. You can skip all the invalid lines by clicking the button \"Skip\" below (But you will have to wait for the program to reprocess from the beginning). Or you can reupload a new file without any invalid lines.";
+                            document.getElementById("invalid-line").textContent = response;
+                            document.getElementById("skip-line").style.display = "flex";
+                        }
+                        console.log(response);
+                    },
+                    error: function (xhr, status, error) {
+                        console.log(error);
+                    }
+                })
+            })
+        })
+
         document.getElementById('valid').style.display = "none";
         document.getElementById('invalid').style.display = "none";
+
+        function setTime() {
+            document.getElementById("time").textContent = hour.toString() + "h" + min.toString() + "m" + sec.toString() + "s";
+            sec += 1;
+            if (sec > 59) {
+                sec = 0;
+                min += 1;
+            }
+            if (min > 59) {
+                min = 0;
+                hour += 1;
+            }
+        }
+
         function typeError(type) {
             if (type[0] === "txt") {
                 return true
             } else return false;
         }
 
-
-        // Sleep function
-        function sleep(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
-
-
         function checkType() {
-            var t = document.getElementById("file_input").value.split('.');
-            var file_name = document.getElementById("file_input").value.split("\\");
+            document.getElementById("total__time").style.display = "none";
+            document.getElementById("view-result").style.display = "none";
+            document.getElementById("invalid-line-div").style.display = "none";
+            document.getElementById("no-file").style.display = "flex";
+
+            document.getElementById("btn_overlay").style.display = "flex";
+            var t = document.getElementById("file").value.split('.');
+            var file_name = document.getElementById("file").value.split("\\");
             document.getElementById('name').style.display = "inline-flex";
             document.getElementById('name').innerHTML = file_name.slice(-1);
             if (typeError(t.slice(-1))) {
@@ -78,21 +194,8 @@
         function close_modal() {
             document.getElementById("confirm_modal").style.display = "none";
         }
-        function submit() {
-            document.getElementById("waiting").style.display = "inline-block";
-            setTimeout(() => {
-                document.getElementById("btn_overlay").style.display = "none";
-            }, 2000);
-        }
     </script>
-    <div class="file">
-        <div class="file__title">
-            Output
-        </div>
-        <div class="file__content">
-            No file chosen, yet. Attach and submit your file to see the result.
-        </div>
-    </div>
+
     <div class="modal" id="confirm_modal" style="display:none;">
         <div class="modal__overlay">
         </div>

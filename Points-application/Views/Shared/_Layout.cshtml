@@ -7,10 +7,10 @@
     <title>@ViewBag.Title - Display</title>
     @Styles.Render("~/Content/css")
     @Scripts.Render("~/bundles/modernizr")
-    @Styles.Render("~/Content/fontawesome")
-    <link rel="stylesheet" href="~/lib/font-awesome/css/all.css"/>
-    <link rel="stylesheet" href="~/Content/layout.css"/>
-
+    <link rel="stylesheet" href="/lib/font-awesome/css/all.min.css" />
+    <link rel="stylesheet" href="~/Content/layout.css" />
+    <script src="~/Scripts/Configuration.js"></script>
+    <script src="~/Scripts/jquery-3.4.1.min.js"></script>
 </head>
 <body>
     <header class="header">
@@ -22,12 +22,14 @@
             <li class="header__nav-item">
                 @Html.ActionLink("MAIN", "Main", "Home", new { area = "" }, new { @class = "nav-link" })
             </li>
+            <!--
             <li class="header__nav-item">
                 @Html.ActionLink("TUTORIAL", "Tutorial", "Home", new { area = "" }, new { @class = "nav-link" })
             </li>
             <li class="header__nav-item">
                 @Html.ActionLink("ABOUT US", "About", "Home", new { area = "" }, new { @class = "nav-link" })
-            </li>
+            </li>        
+            -->
         </ul>
     </header>
     <div class="body-content">

@@ -116,3 +116,12 @@ textarea {
 }
 
 
+
+.body-content {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    animation: fade 0.4s;
+    justify-content:flex-start;
+    gap: 5px;
+}
